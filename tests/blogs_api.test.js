@@ -81,6 +81,27 @@ test('no url - bad request', async () => {
     const response = await api.post('/api/blogs').send(newBlog).expect(400)
 } )
 
+test('deletes successfully', async () => {
+    const currentBlogs = await api.get('/api/blogs')
+    const idToDelete = currentBlogs.body[0].id
+    const response = await api.delete(`/api/blogs/${idToDelete}`).expect(200)
+
+    const newBlogs = await api.get('/api/blogs')
+    assert(newBlogs.body.filter((blog)=> blog.id===idToDelete).length===0)
+} )
+
+test('updates successfully', async () => {
+    const newBlog = {"title":"updated blog", "author":"updated test bot","url":"http://test.com","likes":555}
+
+    const currentBlogs = await api.get('/api/blogs')
+    const idToUpdate = currentBlogs.body[0].id
+    const response = await api.put(`/api/blogs/${idToUpdate}`).send(newBlog).expect(200)
+
+    const newBlogs = await api.get('/api/blogs')
+    const updatedBlog = newBlogs.body.filter((blog)=> blog.id===idToUpdate)[0]
+    assert(_.isEqual(updatedBlog,response.body))
+} )
+
 after(async () => {
   await mongoose.connection.close()
 })
