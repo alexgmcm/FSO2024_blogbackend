@@ -60,6 +60,17 @@ test('new blog created successfully', async () => {
     assert(getNewBlogs.body.some((blog) => _.isEqual(blog,submittedBlog) ))
 })
 
+test('no likes default', async () => {
+    const newBlog = {"title":"posted blog", "author":"test bot","url":"http://test.com"}
+    const response = await api.post('/api/blogs').send(newBlog).expect(201)
+    const submittedBlog = response.body
+
+    const getNewBlogs = await api.get('/api/blogs')
+    const newBlogInDatabase = getNewBlogs.body.filter((x) => x.id===submittedBlog.id)[0]
+    //console.log(newBlogInDatabase)
+    assert(newBlogInDatabase.likes===0)
+} )
+
 after(async () => {
   await mongoose.connection.close()
 })
