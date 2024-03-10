@@ -5,6 +5,7 @@ const app = require('../app')
 const assert = require('node:assert')
 const api = supertest(app)
 const Blog = require('../models/blog')
+const _ = require('lodash')
 
 const initialBlogs = [
     {
@@ -41,6 +42,22 @@ test('Returns two blogs', async () => {
     const response = await api.get('/api/blogs')
     //console.log(response.body)
     assert.strictEqual(response.body.length,2)
+})
+
+test('contains id field', async () => {
+    const response = await api.get('/api/blogs')
+    //console.log(response.body)
+    const blog = response.body[0]
+    assert(Object.keys(blog).includes("id"))
+})
+
+test('new blog created successfully', async () => {
+    const newBlog = {"title":"posted blog", "author":"test bot","url":"http://test.com","likes":222}
+    const response = await api.post('/api/blogs').send(newBlog).expect(201)
+    const submittedBlog = response.body
+
+    const getNewBlogs = await api.get('/api/blogs')
+    assert(getNewBlogs.body.some((blog) => _.isEqual(blog,submittedBlog) ))
 })
 
 after(async () => {
