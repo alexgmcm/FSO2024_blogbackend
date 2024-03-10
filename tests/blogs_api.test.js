@@ -71,6 +71,16 @@ test('no likes default', async () => {
     assert(newBlogInDatabase.likes===0)
 } )
 
+test('no title - bad request', async () => {
+    const newBlog = {"author":"test bot","url":"http://test.com", "likes":666}
+    const response = await api.post('/api/blogs').send(newBlog).expect(400)
+} )
+
+test('no url - bad request', async () => {
+    const newBlog = {"title":"test","author":"test bot", "likes":666}
+    const response = await api.post('/api/blogs').send(newBlog).expect(400)
+} )
+
 after(async () => {
   await mongoose.connection.close()
 })
