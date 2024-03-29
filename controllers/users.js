@@ -20,12 +20,9 @@ try{
 
   response.status(201).json(savedUser)
 } catch(exception){
-    if (exception.name === 'MongoServerError' && exception.code === 11000) {
-        return response.status(400).json({ error: 'username must be unique' })
-      } else {
-        next(exception);
+    next(exception);
   }
-}})
+})
 
 usersRouter.get('/', async (request, response) => {
     const users = await User.find({}).populate('blogs', { title: 1, author: 1 })
