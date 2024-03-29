@@ -2,6 +2,7 @@ const blogsRouter = require('express').Router()
 const Blog = require('../models/blog')
 const User = require('../models/user')
 const jwt = require('jsonwebtoken')
+const middleware = require('../utils/middleware');
 
 
 
@@ -10,14 +11,27 @@ blogsRouter.get('', async (request, response) => {
   response.json(blogs)
   })
 
-  blogsRouter.delete('/:id', async (request, response,next) => {
+  blogsRouter.delete('/:id', middleware.userExtractor,async (request, response,next) => {
     try{
-    const result = await Blog.findByIdAndDelete(request.params.id)
-    response.status(200).json(result)
+      const user = request.user
+      const blogToDelete = await Blog.findById(request.params.id)
+      if (!blogToDelete){
+        return response.status(404).json({ error: 'resource not found' })
+      }
+      console.log(blogToDelete.user.toString())
+      console.log("---")
+      console.log(user.toString())
+      if ( blogToDelete.user.toString() === user.id.toString() ) {
+      const result = await Blog.findByIdAndDelete(request.params.id)
+      response.status(200).json(result)
+      }
+      else {
+        response.status(200).json({error: "user does not have permission to delete this resource"})
+      }
     }
-    catch(exception){
-      next(exception)
-    }
+      catch(exception){
+        next(exception)
+      }
     })
 
   blogsRouter.put('/:id', async (request, response, next) => {
@@ -30,14 +44,10 @@ blogsRouter.get('', async (request, response) => {
     }
   })
   
-  blogsRouter.post('/', async (request, response, next) => {
+  blogsRouter.post('/',middleware.userExtractor, async (request, response, next) => {
     try{
     
-    const decodedToken = jwt.verify(request.token, process.env.SECRET)
-    if (!decodedToken.id) {
-      return response.status(401).json({ error: 'token invalid' })
-    }
-    const user = await User.findById(decodedToken.id)
+    const user = request.user
 
     const blog = new Blog({...request.body, user: user.id })
     const savedBlog = await blog.save()
