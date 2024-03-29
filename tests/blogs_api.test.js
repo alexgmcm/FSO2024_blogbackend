@@ -5,6 +5,8 @@ const app = require('../app')
 const assert = require('node:assert')
 const api = supertest(app)
 const Blog = require('../models/blog')
+const User = require('../models/user')
+
 const _ = require('lodash')
 
 const initialBlogs = [
@@ -24,9 +26,16 @@ const initialBlogs = [
 
   beforeEach(async () => {
     await Blog.deleteMany({})
+    await User.deleteMany({})
     const blogObjects = initialBlogs.map((blog) => new Blog(blog))
     const promiseArray = blogObjects.map(blog => blog.save())
     await Promise.all(promiseArray)
+    const newUser = {"username":"test", "name":"test bot","password":"hunter2"}
+    await api.post('/api/users').send(newUser).expect(201)
+    const loggedIn = await api.post('/api/login').send({"username":"test","password":"hunter2"}).expect(200)
+    const token = loggedIn.body.token
+    //console.log(`Logged in as ${token}`)
+    this.token = token
   })
 
 
@@ -52,17 +61,20 @@ test('contains id field', async () => {
 })
 
 test('new blog created successfully', async () => {
+    
     const newBlog = {"title":"posted blog", "author":"test bot","url":"http://test.com","likes":222}
-    const response = await api.post('/api/blogs').send(newBlog).expect(201)
+    const response = await api.post('/api/blogs').set('Authorization', `Bearer ${this.token}`).send(newBlog).expect(201)
     const submittedBlog = response.body
 
     const getNewBlogs = await api.get('/api/blogs')
-    assert(getNewBlogs.body.some((blog) => _.isEqual(blog,submittedBlog) ))
+    //console.log(submittedBlog)
+    //console.log(getNewBlogs.body)
+    assert(getNewBlogs.body.some((blog) => _.isEqual(blog.id,submittedBlog.id) ))
 })
 
 test('no likes default', async () => {
     const newBlog = {"title":"posted blog", "author":"test bot","url":"http://test.com"}
-    const response = await api.post('/api/blogs').send(newBlog).expect(201)
+    const response = await api.post('/api/blogs').set('Authorization', `Bearer ${this.token}`).send(newBlog).expect(201)
     const submittedBlog = response.body
 
     const getNewBlogs = await api.get('/api/blogs')
@@ -73,21 +85,34 @@ test('no likes default', async () => {
 
 test('no title - bad request', async () => {
     const newBlog = {"author":"test bot","url":"http://test.com", "likes":666}
-    const response = await api.post('/api/blogs').send(newBlog).expect(400)
+    const response = await api.post('/api/blogs').set('Authorization', `Bearer ${this.token}`).send(newBlog).expect(400)
 } )
 
 test('no url - bad request', async () => {
     const newBlog = {"title":"test","author":"test bot", "likes":666}
-    const response = await api.post('/api/blogs').send(newBlog).expect(400)
+    const response = await api.post('/api/blogs').set('Authorization', `Bearer ${this.token}`).send(newBlog).expect(400)
 } )
 
 test('deletes successfully', async () => {
-    const currentBlogs = await api.get('/api/blogs')
-    const idToDelete = currentBlogs.body[0].id
-    const response = await api.delete(`/api/blogs/${idToDelete}`).expect(200)
+    const newBlog = {"title":"posted blog", "author":"test bot","url":"http://test.com","likes":222}
+    const response = await api.post('/api/blogs').set('Authorization', `Bearer ${this.token}`).send(newBlog).expect(201)
+    const submittedBlog = response.body
+
+    const idToDelete = submittedBlog.id
+    const response2 = await api.delete(`/api/blogs/${idToDelete}`).set('Authorization', `Bearer ${this.token}`).expect(200)
 
     const newBlogs = await api.get('/api/blogs')
     assert(newBlogs.body.filter((blog)=> blog.id===idToDelete).length===0)
+} )
+
+test('unauthorized delete returns 401', async () => {
+  const newBlog = {"title":"posted blog", "author":"test bot","url":"http://test.com","likes":222}
+  const response = await api.post('/api/blogs').set('Authorization', `Bearer ${this.token}`).send(newBlog).expect(201)
+
+  const submittedBlog = response.body
+
+  const idToDelete = submittedBlog.id
+  const response2 = await api.delete(`/api/blogs/${idToDelete}`).expect(401)
 } )
 
 test('updates successfully', async () => {
