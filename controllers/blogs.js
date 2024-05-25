@@ -1,11 +1,13 @@
 const blogsRouter = require('express').Router()
 const Blog = require('../models/blog')
+const Comment = require('../models/comment')
 const middleware = require('../utils/middleware');
 
 
 
+
 blogsRouter.get('', async (request, response) => {
-  const blogs = await Blog.find({}).populate('user',{ username: 1, name: 1 })
+  const blogs = await Blog.find({}).populate('user',{ username: 1, name: 1 }).populate('comments', {content: 1})
   response.json(blogs)
   })
 
@@ -35,7 +37,7 @@ blogsRouter.get('', async (request, response) => {
       const blog = request.body
       const result = await Blog.findByIdAndUpdate(request.params.id,blog,{new:true}).populate('user',{ username: 1, name: 1 })
       response.status(200).json(result)
-    } catch(exception){
+    } catch(exception){0
       next(exception)
     }
   })
@@ -44,7 +46,7 @@ blogsRouter.get('', async (request, response) => {
     try{
     
     const user = request.user
-
+    //console.log(request)
     const blog = new Blog({...request.body, user: user.id })
     const savedBlog = await blog.save()
     user.blogs=user.blogs.concat(savedBlog._id)
@@ -56,5 +58,24 @@ blogsRouter.get('', async (request, response) => {
     }
     
   })
+
+  blogsRouter.post('/:id/comments', async(request, response, next) => {
+    try {
+      const {content} = request.body
+      //console.log(request)
+      const comment = new Comment({content})
+      const savedComment = await comment.save()
+      const blog = await Blog.findById(request.params.id).populate('comments', {content: 1})
+      blog.comments = blog.comments.concat(comment)
+      const updatedBlog = await Blog.findByIdAndUpdate(request.params.id,blog,{new:true}).populate('comments', {content: 1})
+      response.status(201).json(updatedBlog)
+    }
+    catch(exception){
+      next(exception)
+    }
+
+
+  }
+  )
 
   module.exports = blogsRouter
